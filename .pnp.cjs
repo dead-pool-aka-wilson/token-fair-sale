@@ -29,6 +29,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./",\
           "packageDependencies": [\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
+            ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
             ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
             ["@types/bn.js", "npm:5.1.5"],\
             ["@types/chai", "npm:4.3.14"],\
@@ -166,6 +167,37 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD"\
         }]\
       ]],\
+      ["@orca-so/common-sdk", [\
+        ["npm:0.5.4", {\
+          "packageLocation": "./.yarn/cache/@orca-so-common-sdk-npm-0.5.4-6effad9ad3-dbcaa14ff1.zip/node_modules/@orca-so/common-sdk/",\
+          "packageDependencies": [\
+            ["@orca-so/common-sdk", "npm:0.5.4"]\
+          ],\
+          "linkType": "SOFT"\
+        }],\
+        ["virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4", {\
+          "packageLocation": "./.yarn/__virtual__/@orca-so-common-sdk-virtual-3cd442445e/0/cache/@orca-so-common-sdk-npm-0.5.4-6effad9ad3-dbcaa14ff1.zip/node_modules/@orca-so/common-sdk/",\
+          "packageDependencies": [\
+            ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
+            ["@solana/spl-token", null],\
+            ["@solana/web3.js", null],\
+            ["@types/decimal.js", null],\
+            ["@types/solana__spl-token", null],\
+            ["@types/solana__web3.js", null],\
+            ["decimal.js", null],\
+            ["tiny-invariant", "npm:1.3.3"]\
+          ],\
+          "packagePeers": [\
+            "@solana/spl-token",\
+            "@solana/web3.js",\
+            "@types/decimal.js",\
+            "@types/solana__spl-token",\
+            "@types/solana__web3.js",\
+            "decimal.js"\
+          ],\
+          "linkType": "HARD"\
+        }]\
+      ]],\
       ["@orca-so/whirlpools-sdk", [\
         ["npm:0.12.4", {\
           "packageLocation": "./.yarn/cache/@orca-so-whirlpools-sdk-npm-0.12.4-4df4b1f8ec-4f9aab63d4.zip/node_modules/@orca-so/whirlpools-sdk/",\
@@ -179,7 +211,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
-            ["@orca-so/common-sdk", null],\
+            ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
             ["@solana/spl-token", null],\
             ["@solana/web3.js", null],\
             ["@types/coral-xyz__anchor", null],\
@@ -2076,6 +2108,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["root-workspace-0b6124", "workspace:."],\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
+            ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
             ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
             ["@types/bn.js", "npm:5.1.5"],\
             ["@types/chai", "npm:4.3.14"],\

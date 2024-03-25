@@ -5,6 +5,7 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
+        "@orca-so/common-sdk": "^0.5.4",
         "@orca-so/whirlpools-sdk": "^0.12.4"
     },
     "devDependencies": {
