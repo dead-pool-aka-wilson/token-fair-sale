@@ -1,12 +1,12 @@
 [package]
-name = "orca-tst"
+name = "orca-test"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "orca_tst"
+name = "orca_test"
 
 [features]
 no-entrypoint = []
@@ -17,3 +17,7 @@ default = []
 
 [dependencies]
 anchor-lang = "0.29.0"
+whirlpool-cpi = { git = "https://github.com/orca-so/whirlpool-cpi", branch = "anchor/0.29.0" }
+solana-program = ">=1.16, <1.18"
+# https://github.com/solana-labs/solana/issues/34609
+ahash = "=0.8.6"
