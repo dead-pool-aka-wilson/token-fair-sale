@@ -50,6 +50,18 @@ pub mod orca_test {
       ) -> Result<()> {
         return instructions::verify_account::handler_position(ctx);
       }
+
+      pub fn proxy_initialize_pool(
+        ctx: Context<ProxyInitializePool>,
+        tick_spacing: u16,
+        initial_sqrt_price: u128,
+      ) -> Result<()> {
+        return instructions::proxy_initialize_pool::handler(
+          ctx,
+          tick_spacing,
+          initial_sqrt_price,
+        );
+      }
 }
 
 
