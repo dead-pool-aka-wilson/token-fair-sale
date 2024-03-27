@@ -29,14 +29,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./",\
           "packageDependencies": [\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
+            ["@noble/hashes", "npm:1.4.0"],\
             ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
-            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
+            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.5"],\
             ["@solana/spl-token", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.4.3"],\
             ["@solana/web3.js", "npm:1.91.1"],\
             ["@types/bn.js", "npm:5.1.5"],\
             ["@types/chai", "npm:4.3.14"],\
             ["@types/mocha", "npm:9.1.1"],\
+            ["bn.js", "npm:5.2.1"],\
             ["chai", "npm:4.4.1"],\
+            ["decimal.js", "npm:10.4.3"],\
             ["mocha", "npm:9.2.2"],\
             ["prettier", "npm:3.2.5"],\
             ["ts-mocha", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:10.0.0"],\
@@ -186,7 +189,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@types/decimal.js", null],\
             ["@types/solana__spl-token", null],\
             ["@types/solana__web3.js", null],\
-            ["decimal.js", null],\
+            ["decimal.js", "npm:10.4.3"],\
             ["tiny-invariant", "npm:1.3.3"]\
           ],\
           "packagePeers": [\
@@ -201,17 +204,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["@orca-so/whirlpools-sdk", [\
-        ["npm:0.12.4", {\
-          "packageLocation": "./.yarn/cache/@orca-so-whirlpools-sdk-npm-0.12.4-4df4b1f8ec-4f9aab63d4.zip/node_modules/@orca-so/whirlpools-sdk/",\
+        ["npm:0.12.5", {\
+          "packageLocation": "./.yarn/cache/@orca-so-whirlpools-sdk-npm-0.12.5-f6874469c7-1e3df6db8e.zip/node_modules/@orca-so/whirlpools-sdk/",\
           "packageDependencies": [\
-            ["@orca-so/whirlpools-sdk", "npm:0.12.4"]\
+            ["@orca-so/whirlpools-sdk", "npm:0.12.5"]\
           ],\
           "linkType": "SOFT"\
         }],\
-        ["virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4", {\
-          "packageLocation": "./.yarn/__virtual__/@orca-so-whirlpools-sdk-virtual-ad0e7b1eb8/0/cache/@orca-so-whirlpools-sdk-npm-0.12.4-4df4b1f8ec-4f9aab63d4.zip/node_modules/@orca-so/whirlpools-sdk/",\
+        ["virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.5", {\
+          "packageLocation": "./.yarn/__virtual__/@orca-so-whirlpools-sdk-virtual-980bd81f20/0/cache/@orca-so-whirlpools-sdk-npm-0.12.5-f6874469c7-1e3df6db8e.zip/node_modules/@orca-so/whirlpools-sdk/",\
           "packageDependencies": [\
-            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
+            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.5"],\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
             ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
             ["@solana/spl-token", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.4.3"],\
@@ -221,7 +224,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@types/orca-so__common-sdk", null],\
             ["@types/solana__spl-token", null],\
             ["@types/solana__web3.js", null],\
-            ["decimal.js", null],\
+            ["decimal.js", "npm:10.4.3"],\
             ["tiny-invariant", "npm:1.3.3"]\
           ],\
           "packagePeers": [\
@@ -781,7 +784,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["bigint-buffer", "npm:1.1.5"],\
             ["bindings", "npm:1.5.0"],\
-            ["node-gyp", "npm:10.0.1"]\
+            ["node-gyp", "npm:10.1.0"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -917,7 +920,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/unplugged/bufferutil-npm-4.0.8-8005ed6210/node_modules/bufferutil/",\
           "packageDependencies": [\
             ["bufferutil", "npm:4.0.8"],\
-            ["node-gyp", "npm:10.0.1"],\
+            ["node-gyp", "npm:10.1.0"],\
             ["node-gyp-build", "npm:4.8.0"]\
           ],\
           "linkType": "HARD"\
@@ -1168,6 +1171,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/decamelize-npm-4.0.0-12410e3409-b7d09b8265.zip/node_modules/decamelize/",\
           "packageDependencies": [\
             ["decamelize", "npm:4.0.0"]\
+          ],\
+          "linkType": "HARD"\
+        }]\
+      ]],\
+      ["decimal.js", [\
+        ["npm:10.4.3", {\
+          "packageLocation": "./.yarn/cache/decimal.js-npm-10.4.3-e7d483387c-796404dcfa.zip/node_modules/decimal.js/",\
+          "packageDependencies": [\
+            ["decimal.js", "npm:10.4.3"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -1426,7 +1438,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/unplugged/fsevents-patch-21ad2b1333/node_modules/fsevents/",\
           "packageDependencies": [\
             ["fsevents", "patch:fsevents@npm%3A2.3.3#~builtin<compat/fsevents>::version=2.3.3&hash=df0bf1"],\
-            ["node-gyp", "npm:10.0.1"]\
+            ["node-gyp", "npm:10.1.0"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -2151,10 +2163,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["node-gyp", [\
-        ["npm:10.0.1", {\
-          "packageLocation": "./.yarn/unplugged/node-gyp-npm-10.0.1-48708ce70b/node_modules/node-gyp/",\
+        ["npm:10.1.0", {\
+          "packageLocation": "./.yarn/unplugged/node-gyp-npm-10.1.0-bdea7d2ece/node_modules/node-gyp/",\
           "packageDependencies": [\
-            ["node-gyp", "npm:10.0.1"],\
+            ["node-gyp", "npm:10.1.0"],\
             ["env-paths", "npm:2.2.1"],\
             ["exponential-backoff", "npm:3.1.1"],\
             ["glob", "npm:10.3.10"],\
@@ -2384,14 +2396,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["root-workspace-0b6124", "workspace:."],\
             ["@coral-xyz/anchor", "npm:0.29.0"],\
+            ["@noble/hashes", "npm:1.4.0"],\
             ["@orca-so/common-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.5.4"],\
-            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.4"],\
+            ["@orca-so/whirlpools-sdk", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.12.5"],\
             ["@solana/spl-token", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:0.4.3"],\
             ["@solana/web3.js", "npm:1.91.1"],\
             ["@types/bn.js", "npm:5.1.5"],\
             ["@types/chai", "npm:4.3.14"],\
             ["@types/mocha", "npm:9.1.1"],\
+            ["bn.js", "npm:5.2.1"],\
             ["chai", "npm:4.4.1"],\
+            ["decimal.js", "npm:10.4.3"],\
             ["mocha", "npm:9.2.2"],\
             ["prettier", "npm:3.2.5"],\
             ["ts-mocha", "virtual:dc3fc578bfa5e06182a4d2be39ede0bc5b74940b1ffe0d70c26892ab140a4699787750fba175dc306292e80b4aa2c8c5f68c2a821e69b2c37e360c0dff36ff66#npm:10.0.0"],\
@@ -2840,7 +2855,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/unplugged/utf-8-validate-npm-5.0.10-93e9b6f750/node_modules/utf-8-validate/",\
           "packageDependencies": [\
             ["utf-8-validate", "npm:5.0.10"],\
-            ["node-gyp", "npm:10.0.1"],\
+            ["node-gyp", "npm:10.1.0"],\
             ["node-gyp-build", "npm:4.8.0"]\
           ],\
           "linkType": "HARD"\

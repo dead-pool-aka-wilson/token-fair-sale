@@ -62,6 +62,16 @@ pub mod orca_test {
           initial_sqrt_price,
         );
       }
+
+       pub fn proxy_initialize_tick_array(
+    ctx: Context<ProxyInitializeTickArray>,
+    start_tick_index: i32,
+  ) -> Result<()> {
+    return instructions::proxy_initialize_tick_array::handler(
+      ctx,
+      start_tick_index,
+    );
+  }
 }
 
 
