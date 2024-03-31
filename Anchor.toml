@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-orca_tst = "Auk5McF2qPTR2f1CXxvg8MGPSiPGusULqE5k2sLjJy7g"
+orca_tst = "8bd9cEM4gmXkUBe31rs1Virzk5DnC1je13RqDWufwXdm"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,3 +16,26 @@ wallet = "./tests/test-wallet.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts --trace-warnings"
+
+
+[test]
+startup_wait = 10000
+
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+# metadata program
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s" 
+
+# Whirlpool program
+[[test.validator.clone]]
+address = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"
+
+# whirlpools config
+[[test.validator.clone]]
+address = "2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ"
+
+# whirlpools_config_feetier128
+[[test.validator.clone]]
+address = "BGnhGXT9CCt5WYS23zg9sqsAT2MGXkq7VSwch9pML82W"

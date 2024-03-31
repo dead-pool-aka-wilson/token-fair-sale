@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 pub mod instructions;
 use instructions::*;
 
-declare_id!("Auk5McF2qPTR2f1CXxvg8MGPSiPGusULqE5k2sLjJy7g");
+declare_id!("8bd9cEM4gmXkUBe31rs1Virzk5DnC1je13RqDWufwXdm");
 
 #[program]
 pub mod orca_test {

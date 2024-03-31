@@ -31,6 +31,7 @@ import {
 } from '@orca-so/common-sdk';
 import { assert } from 'chai';
 import BN from 'bn.js';
+import Decimal from 'decimal.js';
 
 const SOL = {
     mint: new PublicKey('So11111111111111111111111111111111111111112'),
@@ -91,6 +92,7 @@ describe('orca-test', () => {
         }
 
         const tick_spacing = 128;
+
         const fee_tier_128_pubkey = PDAUtil.getFeeTier(
             ORCA_WHIRLPOOL_PROGRAM_ID,
             ORCA_WHIRLPOOLS_CONFIG,
@@ -105,8 +107,14 @@ describe('orca-test', () => {
             tick_spacing,
         ).publicKey;
 
-        // use SAMO/USDC (ts=64) whirlpool price as initial sqrt price
-        const initial_sqrt_price = samo_usdc_whirlpool.sqrtPrice;
+        // token price new / sol
+        const desiredMarketPrice = new Decimal(2);
+        // Shift by 64 bits
+        const initial_sqrt_price = PriceMath.priceToSqrtPriceX64(
+            desiredMarketPrice,
+            9,
+            9,
+        );
 
         const new_samo_vault_keypair = Keypair.generate();
         const usdc_vault_keypair = Keypair.generate();
@@ -117,7 +125,7 @@ describe('orca-test', () => {
                 whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
                 whirlpoolsConfig: ORCA_WHIRLPOOLS_CONFIG,
                 tokenMintA: NEW_SAMO_MINT,
-                tokenMintB: USDC.mint,
+                tokenMintB: SOL.mint,
                 funder: wallet.publicKey,
                 whirlpool: new_samo_usdc_whirlpool_ts_128_pubkey,
                 tokenVaultA: new_samo_vault_keypair.publicKey,
