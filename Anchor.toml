@@ -6,7 +6,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-orca_tst = "9kUZv9JjkuAsTEmauboSaCzBH5cfFjThyWecCeYXFQ5h"
+orca_test = "9kUZv9JjkuAsTEmauboSaCzBH5cfFjThyWecCeYXFQ5h"
 
 [registry]
 url = "https://api.apr.dev"

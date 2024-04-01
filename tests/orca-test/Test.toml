@@ -11,6 +11,13 @@ program = "programs/metadata.so"
 address = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"
 program = "programs/whirlpool.so"
 
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+# whirlpool program idl account
+[[test.validator.clone]]
+address = "2KFqE4RWoPVbvodo8vbggCFeHPS8TDvgpwp79ALMrcyn"
+
 [[test.validator.account]]
 address = "2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ"
 filename = "accounts/whirlpools_config.json"
@@ -26,3 +33,4 @@ filename = "accounts/whirlpools_config_feetier64.json"
 [[test.validator.account]]
 address = "BGnhGXT9CCt5WYS23zg9sqsAT2MGXkq7VSwch9pML82W"
 filename = "accounts/whirlpools_config_feetier128.json"
+

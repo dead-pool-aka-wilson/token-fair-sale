@@ -11,6 +11,9 @@ import {
     SystemProgram,
     SYSVAR_RENT_PUBKEY,
     Connection,
+    Transaction,
+    LAMPORTS_PER_SOL,
+    sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import {
     ORCA_WHIRLPOOL_PROGRAM_ID,
@@ -21,22 +24,30 @@ import {
     buildWhirlpoolClient,
     PoolUtil,
     TickUtil,
+    IGNORE_CACHE,
+    increaseLiquidityQuoteByInputToken,
 } from '@orca-so/whirlpools-sdk';
-import { createMint } from '@solana/spl-token';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+    createMint,
+    mintTo,
+    createAccount,
+    TOKEN_PROGRAM_ID,
+    getAssociatedTokenAddressSync,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    syncNative,
+} from '@solana/spl-token';
 import {
     TransactionBuilder,
     Wallet,
     TransactionBuilderOptions,
+    DecimalUtil,
+    Percentage,
+    resolveOrCreateATA,
 } from '@orca-so/common-sdk';
 import { assert } from 'chai';
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
 
-const SOL = {
-    mint: new PublicKey('So11111111111111111111111111111111111111112'),
-    decimals: 9,
-};
 const TEST_PROVIDER_URL = 'http://localhost:8899';
 const TEST_WALLET_SECRET = [
     76, 58, 227, 140, 84, 35, 34, 94, 210, 40, 248, 31, 56, 113, 4, 213, 195,
@@ -44,6 +55,9 @@ const TEST_WALLET_SECRET = [
     176, 5, 119, 211, 100, 106, 160, 142, 58, 48, 144, 91, 203, 77, 198, 67,
     187, 148, 139, 159, 53, 68, 93, 59, 150, 69, 24, 221, 84, 37,
 ];
+
+const sleep = second =>
+    new Promise(resolve => setTimeout(resolve, second * 1000));
 
 describe('orca-test', () => {
     const connection = new Connection(TEST_PROVIDER_URL, 'confirmed');
@@ -59,11 +73,39 @@ describe('orca-test', () => {
 
     const wallet = provider.wallet as Wallet;
 
+    let DEOK_MINT: PublicKey;
+    let DEOK_KEYPAIR: Keypair;
+
+    while (!DEOK_MINT) {
+        const mint_keypair = Keypair.generate();
+        const mint = mint_keypair.publicKey;
+        const [mint_a, mint_b] = PoolUtil.orderMints(
+            mint,
+            new PublicKey('So11111111111111111111111111111111111111112'),
+        );
+        if (mint_a.toString() === mint.toString()) {
+            DEOK_MINT = mint;
+            DEOK_KEYPAIR = mint_keypair;
+        }
+    }
+    const DEOK = {
+        mint: DEOK_MINT,
+        decimals: 9,
+    };
+    const SOL = {
+        mint: new PublicKey('So11111111111111111111111111111111111111112'),
+        decimals: 9,
+    };
+
+    const DEOK_ATA = getAssociatedTokenAddressSync(DEOK.mint, wallet.publicKey);
+    const SOL_ATA = getAssociatedTokenAddressSync(SOL.mint, wallet.publicKey);
+
     const whirlpool_ctx = WhirlpoolContext.withProvider(
         provider,
         ORCA_WHIRLPOOL_PROGRAM_ID,
     );
     const fetcher = whirlpool_ctx.fetcher;
+    const whirlpool_client = buildWhirlpoolClient(whirlpool_ctx);
 
     const transaction_builder_opts: TransactionBuilderOptions = {
         defaultBuildOption: {
@@ -76,174 +118,400 @@ describe('orca-test', () => {
         },
     };
 
-    it('execute proxy initialize_pool and initialize_tick_array', async () => {
-        let NEW_SAMO_MINT: PublicKey;
-        let count: number = 0;
-        while (!NEW_SAMO_MINT) {
-            const mint = await createMint(
-                connection,
-                testWallet,
-                wallet.publicKey,
-                wallet.publicKey,
-                9,
-            );
+    const tick_spacing = 128;
 
-            const [mint_a, mint_b] = PoolUtil.orderMints(mint, SOL.mint);
-            console.log(
-                `${count++} : \n \t mint : ${mint.toBase58()} \n \t mint_a : ${mint_a.toString()} \n \t mint_b : ${mint_b.toString()}`,
-            );
-            if (mint_a.toString() === mint.toString()) {
-                NEW_SAMO_MINT = mint;
-            }
-        }
+    const fee_tier_128_pubkey = PDAUtil.getFeeTier(
+        ORCA_WHIRLPOOL_PROGRAM_ID,
+        ORCA_WHIRLPOOLS_CONFIG,
+        tick_spacing,
+    ).publicKey;
 
-        const tick_spacing = 128;
+    const deok_sol_whirlpool_pubkey = PDAUtil.getWhirlpool(
+        ORCA_WHIRLPOOL_PROGRAM_ID,
+        ORCA_WHIRLPOOLS_CONFIG,
+        DEOK.mint,
+        SOL.mint,
+        tick_spacing,
+    ).publicKey;
 
-        const fee_tier_128_pubkey = PDAUtil.getFeeTier(
-            ORCA_WHIRLPOOL_PROGRAM_ID,
-            ORCA_WHIRLPOOLS_CONFIG,
-            tick_spacing,
-        ).publicKey;
+    const position_mint_keypair = Keypair.generate();
+    const position_mint = position_mint_keypair.publicKey;
+    const position_pda = PDAUtil.getPosition(
+        ORCA_WHIRLPOOL_PROGRAM_ID,
+        position_mint,
+    );
 
-        const new_samo_usdc_whirlpool_ts_128_pubkey = PDAUtil.getWhirlpool(
-            ORCA_WHIRLPOOL_PROGRAM_ID,
-            ORCA_WHIRLPOOLS_CONFIG,
-            NEW_SAMO_MINT,
-            SOL.mint,
-            tick_spacing,
-        ).publicKey;
-
+    describe('initialize pool, open position, provide liguidity', () => {
         // token price new / sol
-        const desiredMarketPrice = new Decimal(2);
+        const desiredMarketPrice = new Decimal(0.0005);
         // Shift by 64 bits
         const initial_sqrt_price = PriceMath.priceToSqrtPriceX64(
             desiredMarketPrice,
             9,
             9,
         );
-
-        const new_samo_vault_keypair = Keypair.generate();
-        const usdc_vault_keypair = Keypair.generate();
-
-        const initialize_pool = await program.methods
-            .proxyInitializePool(tick_spacing, initial_sqrt_price)
-            .accounts({
-                whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
-                whirlpoolsConfig: ORCA_WHIRLPOOLS_CONFIG,
-                tokenMintA: NEW_SAMO_MINT,
-                tokenMintB: SOL.mint,
-                funder: wallet.publicKey,
-                whirlpool: new_samo_usdc_whirlpool_ts_128_pubkey,
-                tokenVaultA: new_samo_vault_keypair.publicKey,
-                tokenVaultB: usdc_vault_keypair.publicKey,
-                feeTier: fee_tier_128_pubkey,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                systemProgram: SystemProgram.programId,
-                rent: SYSVAR_RENT_PUBKEY,
-            })
-            .signers([new_samo_vault_keypair, usdc_vault_keypair])
-            .rpc()
-            .then(res => res);
-        // .catch(err => console.log(JSON.stringify(err)));
-        // .instruction();
-        console.log(initialize_pool);
-
         const initial_tick_current_index =
             PriceMath.sqrtPriceX64ToTickIndex(initial_sqrt_price);
-        const start_tick_indexes = [
-            TickUtil.getStartTickIndex(
-                initial_tick_current_index,
-                tick_spacing,
-                -2,
-            ),
-            TickUtil.getStartTickIndex(
-                initial_tick_current_index,
-                tick_spacing,
-                -1,
-            ),
-            TickUtil.getStartTickIndex(
-                initial_tick_current_index,
-                tick_spacing,
-                0,
-            ),
-            TickUtil.getStartTickIndex(
-                initial_tick_current_index,
-                tick_spacing,
-                +1,
-            ),
-            TickUtil.getStartTickIndex(
-                initial_tick_current_index,
-                tick_spacing,
-                +2,
-            ),
-        ];
 
-        // const initialize_tick_arrays = await Promise.all(
-        //     start_tick_indexes.map(start_tick_index => {
-        //         return program.methods
-        //             .proxyInitializeTickArray(start_tick_index)
-        //             .accounts({
-        //                 whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
-        //                 whirlpool: new_samo_usdc_whirlpool_ts_128_pubkey,
-        //                 funder: wallet.publicKey,
-        //                 tickArray: PDAUtil.getTickArray(
-        //                     ORCA_WHIRLPOOL_PROGRAM_ID,
-        //                     new_samo_usdc_whirlpool_ts_128_pubkey,
-        //                     start_tick_index,
-        //                 ).publicKey,
-        //                 systemProgram: SystemProgram.programId,
-        //             })
-        //             .instruction();
-        //     }),
-        // );
+        before(async () => {
+            await createMint(
+                connection,
+                testWallet,
+                wallet.publicKey,
+                wallet.publicKey,
+                9,
+                DEOK_KEYPAIR,
+                { commitment: 'confirmed' },
+            )
+                .then(res =>
+                    createAccount(
+                        connection,
+                        testWallet,
+                        DEOK.mint,
+                        testWallet.publicKey,
+                        undefined,
+                        { commitment: 'confirmed' },
+                    ),
+                )
+                .then(res =>
+                    mintTo(
+                        connection,
+                        testWallet,
+                        DEOK.mint,
+                        DEOK_ATA,
+                        testWallet,
+                        BigInt('1000000000000000000'),
+                        undefined,
+                        { commitment: 'confirmed' },
+                    ),
+                )
+                .then(res =>
+                    createAccount(
+                        connection,
+                        testWallet,
+                        SOL.mint,
+                        testWallet.publicKey,
+                        undefined,
+                        { commitment: 'confirmed' },
+                    ),
+                )
+                .then(res =>
+                    (async () => {
+                        const transaction = new Transaction().add(
+                            SystemProgram.transfer({
+                                fromPubkey: testWallet.publicKey,
+                                toPubkey: SOL_ATA,
+                                lamports: LAMPORTS_PER_SOL * 1000000,
+                            }),
+                        );
 
-        // const transaction = new TransactionBuilder(
-        //     connection,
-        //     wallet,
-        //     transaction_builder_opts,
-        // )
-        //     .addInstruction({
-        //         instructions: [initialize_pool],
-        //         cleanupInstructions: [],
-        //         signers: [new_samo_vault_keypair, usdc_vault_keypair],
-        //     })
-        //     .addInstruction({
-        //         instructions: initialize_tick_arrays,
-        //         cleanupInstructions: [],
-        //         signers: [],
-        //     });
+                        await sendAndConfirmTransaction(
+                            connection,
+                            transaction,
+                            [testWallet],
+                        );
+                    })(),
+                )
+                .then(res =>
+                    syncNative(connection, testWallet, SOL_ATA, {
+                        commitment: 'confirmed',
+                    }),
+                );
+        });
+        it('execute proxy initialize_pool and initialize_tick_array', async () => {
+            const deok_vault_keypair = Keypair.generate();
+            const sol_vault_keypair = Keypair.generate();
 
-        // const signature = await transaction.buildAndExecute();
-        // await connection.confirmTransaction(signature);
+            const initialize_pool = await program.methods
+                .proxyInitializePool(tick_spacing, initial_sqrt_price)
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpoolsConfig: ORCA_WHIRLPOOLS_CONFIG,
+                    tokenMintA: DEOK.mint,
+                    tokenMintB: SOL.mint,
+                    funder: wallet.publicKey,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenVaultA: deok_vault_keypair.publicKey,
+                    tokenVaultB: sol_vault_keypair.publicKey,
+                    feeTier: fee_tier_128_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                    rent: SYSVAR_RENT_PUBKEY,
+                })
+                .instruction();
 
-        // // verification
-        // const new_samo_usdc_whirlpool_ts_128 = await fetcher.getPool(
-        //     new_samo_usdc_whirlpool_ts_128_pubkey,
-        // );
-        // assert(new_samo_usdc_whirlpool_ts_128.tokenMintA.equals(NEW_SAMO_MINT));
-        // assert(new_samo_usdc_whirlpool_ts_128.tokenMintB.equals(USDC.mint));
-        // assert(new_samo_usdc_whirlpool_ts_128.tickSpacing === tick_spacing);
-        // assert(new_samo_usdc_whirlpool_ts_128.sqrtPrice.eq(initial_sqrt_price));
+            const start_tick_indexes = [
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    -4,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    -3,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    -2,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    -1,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    0,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    +1,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    +2,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    +3,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    +4,
+                ),
+            ];
 
-        // const tickarray_pubkeys = start_tick_indexes.map(start_tick_index => {
-        //     return PDAUtil.getTickArray(
-        //         ORCA_WHIRLPOOL_PROGRAM_ID,
-        //         new_samo_usdc_whirlpool_ts_128_pubkey,
-        //         start_tick_index,
-        //     ).publicKey;
-        // });
-        // const tickarrays = await Promise.all(
-        //     tickarray_pubkeys.map(tickarray_pubkey => {
-        //         return fetcher.getTickArray(tickarray_pubkey);
-        //     }),
-        // );
-        // tickarrays.forEach((tickarray, i) => {
-        //     assert(
-        //         tickarray.whirlpool.equals(
-        //             new_samo_usdc_whirlpool_ts_128_pubkey,
-        //         ),
-        //     );
-        //     assert(tickarray.startTickIndex === start_tick_indexes[i]);
-        // });
+            const initialize_tick_arrays = await Promise.all(
+                start_tick_indexes.map(start_tick_index => {
+                    return program.methods
+                        .proxyInitializeTickArray(start_tick_index)
+                        .accounts({
+                            whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                            whirlpool: deok_sol_whirlpool_pubkey,
+                            funder: wallet.publicKey,
+                            tickArray: PDAUtil.getTickArray(
+                                ORCA_WHIRLPOOL_PROGRAM_ID,
+                                deok_sol_whirlpool_pubkey,
+                                start_tick_index,
+                            ).publicKey,
+                            systemProgram: SystemProgram.programId,
+                        })
+                        .instruction();
+                }),
+            );
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction({
+                    instructions: [initialize_pool],
+                    cleanupInstructions: [],
+                    signers: [deok_vault_keypair, sol_vault_keypair],
+                })
+                .addInstruction({
+                    instructions: initialize_tick_arrays,
+                    cleanupInstructions: [],
+                    signers: [],
+                });
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+
+            // verification
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+            );
+            assert(deok_sol_whirlpool.tokenMintA.equals(DEOK.mint));
+            assert(deok_sol_whirlpool.tokenMintB.equals(SOL.mint));
+            assert(deok_sol_whirlpool.tickSpacing === tick_spacing);
+            assert(deok_sol_whirlpool.sqrtPrice.eq(initial_sqrt_price));
+
+            const tickarray_pubkeys = start_tick_indexes.map(
+                start_tick_index => {
+                    return PDAUtil.getTickArray(
+                        ORCA_WHIRLPOOL_PROGRAM_ID,
+                        deok_sol_whirlpool_pubkey,
+                        start_tick_index,
+                    ).publicKey;
+                },
+            );
+            const tickarrays = await Promise.all(
+                tickarray_pubkeys.map(tickarray_pubkey => {
+                    return fetcher.getTickArray(tickarray_pubkey);
+                }),
+            );
+            tickarrays.forEach((tickarray, i) => {
+                assert(tickarray.whirlpool.equals(deok_sol_whirlpool_pubkey));
+                assert(tickarray.startTickIndex === start_tick_indexes[i]);
+            });
+        });
+
+        it('execute proxy open_position', async () => {
+            const position_ta = getAssociatedTokenAddressSync(
+                position_mint,
+                wallet.publicKey,
+            );
+
+            const [tick_lower_index, tick_upper_index] = [
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    -4,
+                ),
+                TickUtil.getStartTickIndex(
+                    initial_tick_current_index,
+                    tick_spacing,
+                    +4,
+                ),
+            ];
+
+            const open_position = await program.methods
+                .proxyOpenPosition(tick_lower_index, tick_upper_index)
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    funder: wallet.publicKey,
+                    owner: wallet.publicKey,
+                    position: position_pda.publicKey,
+                    positionMint: position_mint,
+                    positionTokenAccount: position_ta,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                    rent: SYSVAR_RENT_PUBKEY,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            ).addInstruction({
+                instructions: [open_position],
+                cleanupInstructions: [],
+                signers: [position_mint_keypair],
+            });
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+
+            const position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+            assert(position_data.positionMint.equals(position_mint));
+            assert(position_data.whirlpool.equals(deok_sol_whirlpool_pubkey));
+            assert(position_data.tickLowerIndex === tick_lower_index);
+            assert(position_data.tickUpperIndex === tick_upper_index);
+            assert(position_data.liquidity.isZero());
+        });
+
+        it('execute proxy increase_liquidity', async () => {
+            const deok_sol_whirlpool = await whirlpool_client.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+
+            const quote = increaseLiquidityQuoteByInputToken(
+                SOL.mint,
+                DecimalUtil.fromNumber(100000),
+                position_data.tickLowerIndex,
+                position_data.tickUpperIndex,
+                Percentage.fromFraction(0, 1000),
+                deok_sol_whirlpool,
+            );
+
+            const increase_liquidity = await program.methods
+                .proxyIncreaseLiquidity(
+                    quote.liquidityAmount,
+                    quote.tokenMaxA,
+                    quote.tokenMaxB,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    positionAuthority: wallet.publicKey,
+                    position: position_pda.publicKey,
+                    positionTokenAccount: getAssociatedTokenAddressSync(
+                        position_mint,
+                        wallet.publicKey,
+                    ),
+                    tokenOwnerAccountA: getAssociatedTokenAddressSync(
+                        DEOK.mint,
+                        wallet.publicKey,
+                    ),
+                    tokenOwnerAccountB: getAssociatedTokenAddressSync(
+                        SOL.mint,
+                        wallet.publicKey,
+                    ),
+                    tokenVaultA: deok_sol_whirlpool.getData().tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.getData().tokenVaultB,
+                    tickArrayLower: PDAUtil.getTickArrayFromTickIndex(
+                        position_data.tickLowerIndex,
+                        tick_spacing,
+                        deok_sol_whirlpool_pubkey,
+                        ORCA_WHIRLPOOL_PROGRAM_ID,
+                    ).publicKey,
+                    tickArrayUpper: PDAUtil.getTickArrayFromTickIndex(
+                        position_data.tickUpperIndex,
+                        tick_spacing,
+                        deok_sol_whirlpool_pubkey,
+                        ORCA_WHIRLPOOL_PROGRAM_ID,
+                    ).publicKey,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            ).addInstruction({
+                instructions: [increase_liquidity],
+                cleanupInstructions: [],
+                signers: [],
+            });
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+
+            const post_position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+            const delta_liquidity = post_position_data.liquidity.sub(
+                position_data.liquidity,
+            );
+            assert(delta_liquidity.eq(quote.liquidityAmount));
+        });
+    });
+
+    describe('swap sol to deok', () => {
+        before(async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(1000 /* SOL */),
+                SOL.decimals,
+            );
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                wallet.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+        });
     });
 });
