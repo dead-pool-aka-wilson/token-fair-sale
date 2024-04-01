@@ -45,4 +45,22 @@ pub mod orca_test {
             token_max_b,
         );
     }
+
+    pub fn proxy_swap(
+        ctx: Context<ProxySwap>,
+        amount: u64,
+        other_amount_threshold: u64,
+        sqrt_price_limit: u128,
+        amount_specified_is_input: bool,
+        a_to_b: bool,
+    ) -> Result<()> {
+        return instructions::proxy_swap::handler(
+            ctx,
+            amount,
+            other_amount_threshold,
+            sqrt_price_limit,
+            amount_specified_is_input,
+            a_to_b,
+        );
+    }
 }
