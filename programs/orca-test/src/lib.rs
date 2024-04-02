@@ -63,4 +63,11 @@ pub mod orca_test {
             a_to_b,
         );
     }
+
+    pub fn proxy_update_fees_and_rewards(ctx: Context<ProxyUpdateFeesAndRewards>) -> Result<()> {
+        return instructions::proxy_update_fees_and_rewards::handler(ctx);
+    }
+    pub fn proxy_collect_fees(ctx: Context<ProxyCollectFees>) -> Result<()> {
+        return instructions::proxy_collect_fees::handler(ctx);
+    }
 }

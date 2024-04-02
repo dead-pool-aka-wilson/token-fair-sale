@@ -38,6 +38,7 @@ import {
     ASSOCIATED_TOKEN_PROGRAM_ID,
     syncNative,
     AccountLayout,
+    createCloseAccountInstruction,
 } from '@solana/spl-token';
 import {
     TransactionBuilder,
@@ -75,6 +76,8 @@ describe('orca-test', () => {
     );
 
     const wallet = provider.wallet as Wallet;
+
+    const user = Keypair.generate();
 
     let DEOK_MINT: PublicKey;
     let DEOK_KEYPAIR: Keypair;
@@ -507,14 +510,6 @@ describe('orca-test', () => {
     });
 
     describe('swap', () => {
-        const user = Keypair.generate();
-        const wallet = provider.wallet as Wallet;
-        const sol_input = DecimalUtil.toBN(
-            DecimalUtil.fromNumber(10 /* SOL */),
-            SOL.decimals,
-        );
-        const count: Array<any> = new Array(10000);
-
         before(async () => {
             await (async () => {
                 const transaction = new Transaction().add(
@@ -530,124 +525,2476 @@ describe('orca-test', () => {
                 ]);
             })();
         });
-        it('execute multiple swap', async () => {
-            count.forEach((_, i) => {
-                describe('swap sol to deok', () => {
-                    it(`swap sol to deok : ${i + 1} `, async () => {
-                        const deok_sol_whirlpool = await fetcher.getPool(
-                            deok_sol_whirlpool_pubkey,
-                            IGNORE_CACHE,
-                        );
-                        const deok_sol_whirlpool_oracle_pubkey =
-                            PDAUtil.getOracle(
-                                ORCA_WHIRLPOOL_PROGRAM_ID,
-                                deok_sol_whirlpool_pubkey,
-                            ).publicKey;
 
-                        const amount = new anchor.BN(sol_input);
-                        const other_amount_threshold = new anchor.BN(0);
-                        const amount_specified_is_input = true;
-                        const a_to_b = false;
-                        const sqrt_price_limit =
-                            SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
 
-                        const tickarrays = SwapUtils.getTickArrayPublicKeys(
-                            deok_sol_whirlpool.tickCurrentIndex,
-                            deok_sol_whirlpool.tickSpacing,
-                            a_to_b,
-                            ORCA_WHIRLPOOL_PROGRAM_ID,
-                            deok_sol_whirlpool_pubkey,
-                        );
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
 
-                        const wsol_ta = await resolveOrCreateATA(
-                            connection,
-                            user.publicKey,
-                            SOL.mint,
-                            rent_ta,
-                            sol_input,
-                        );
-                        const deok_ta = await resolveOrCreateATA(
-                            connection,
-                            user.publicKey,
-                            DEOK.mint,
-                            rent_ta,
-                        );
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
 
-                        const swap = await program.methods
-                            .proxySwap(
-                                amount,
-                                other_amount_threshold,
-                                sqrt_price_limit,
-                                amount_specified_is_input,
-                                a_to_b,
-                            )
-                            .accounts({
-                                whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
-                                whirlpool: deok_sol_whirlpool_pubkey,
-                                tokenAuthority: user.publicKey,
-                                tokenVaultA: deok_sol_whirlpool.tokenVaultA,
-                                tokenVaultB: deok_sol_whirlpool.tokenVaultB,
-                                tokenOwnerAccountA: deok_ta.address,
-                                tokenOwnerAccountB: wsol_ta.address,
-                                tickArray0: tickarrays[0],
-                                tickArray1: tickarrays[1],
-                                tickArray2: tickarrays[2],
-                                oracle: deok_sol_whirlpool_oracle_pubkey,
-                                tokenProgram: TOKEN_PROGRAM_ID,
-                            })
-                            .instruction();
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
 
-                        const transaction = new TransactionBuilder(
-                            connection,
-                            wallet,
-                            transaction_builder_opts,
-                        )
-                            .addInstruction(wsol_ta)
-                            .addInstruction(deok_ta)
-                            .addInstruction({
-                                instructions: [swap],
-                                cleanupInstructions: [],
-                                signers: [user],
-                            });
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
 
-                        // verification
-                        const quote = await swapQuoteByInputToken(
-                            await whirlpool_client.getPool(
-                                deok_sol_whirlpool_pubkey,
-                                IGNORE_CACHE,
-                            ),
-                            SOL.mint,
-                            sol_input,
-                            Percentage.fromFraction(0, 1000),
-                            ORCA_WHIRLPOOL_PROGRAM_ID,
-                            fetcher,
-                            IGNORE_CACHE,
-                        );
-
-                        const pre_deok_ta = await fetcher.getTokenInfo(
-                            deok_ta.address,
-                            IGNORE_CACHE,
-                        );
-                        const pre_deok =
-                            pre_deok_ta === null
-                                ? new anchor.BN(0)
-                                : pre_deok_ta.amount;
-
-                        const signature = await transaction.buildAndExecute();
-                        await connection.confirmTransaction(signature);
-                        const post_deok_ta = await fetcher.getTokenInfo(
-                            deok_ta.address,
-                            IGNORE_CACHE,
-                        );
-                        const post_deok = post_deok_ta.amount;
-
-                        const deok_output = new BN(post_deok.toString()).sub(
-                            new BN(pre_deok.toString()),
-                        );
-                        assert(deok_output.eq(quote.estimatedAmountOut));
-                    });
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
                 });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const sol_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* SOL */),
+                SOL.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(sol_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = false;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+                sol_input,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+
+            // verification
+            const quote = await swapQuoteByInputToken(
+                await whirlpool_client.getPool(
+                    deok_sol_whirlpool_pubkey,
+                    IGNORE_CACHE,
+                ),
+                SOL.mint,
+                sol_input,
+                Percentage.fromFraction(0, 1000),
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                fetcher,
+                IGNORE_CACHE,
+            );
+
+            const pre_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const pre_deok =
+                pre_deok_ta === null ? new anchor.BN(0) : pre_deok_ta.amount;
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+            const post_deok_ta = await fetcher.getTokenInfo(
+                deok_ta.address,
+                IGNORE_CACHE,
+            );
+            const post_deok = post_deok_ta.amount;
+
+            const deok_output = new BN(post_deok.toString()).sub(
+                new BN(pre_deok.toString()),
+            );
+            assert(deok_output.eq(quote.estimatedAmountOut));
+        });
+        it('execute swap', async () => {
+            const deok_input = DecimalUtil.toBN(
+                DecimalUtil.fromNumber(Math.random() * 10 /* DEOK */),
+                DEOK.decimals,
+            );
+            const deok_sol_whirlpool = await fetcher.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+            const deok_sol_whirlpool_oracle_pubkey = PDAUtil.getOracle(
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            ).publicKey;
+
+            const amount = new anchor.BN(deok_input);
+            const other_amount_threshold = new anchor.BN(0);
+            const amount_specified_is_input = true;
+            const a_to_b = true;
+            const sqrt_price_limit = SwapUtils.getDefaultSqrtPriceLimit(a_to_b);
+
+            const tickarrays = SwapUtils.getTickArrayPublicKeys(
+                deok_sol_whirlpool.tickCurrentIndex,
+                deok_sol_whirlpool.tickSpacing,
+                a_to_b,
+                ORCA_WHIRLPOOL_PROGRAM_ID,
+                deok_sol_whirlpool_pubkey,
+            );
+
+            const wsol_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                SOL.mint,
+                rent_ta,
+            );
+            const deok_ta = await resolveOrCreateATA(
+                connection,
+                user.publicKey,
+                DEOK.mint,
+                rent_ta,
+            );
+
+            const swap = await program.methods
+                .proxySwap(
+                    amount,
+                    other_amount_threshold,
+                    sqrt_price_limit,
+                    amount_specified_is_input,
+                    a_to_b,
+                )
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    tokenAuthority: user.publicKey,
+                    tokenVaultA: deok_sol_whirlpool.tokenVaultA,
+                    tokenVaultB: deok_sol_whirlpool.tokenVaultB,
+                    tokenOwnerAccountA: deok_ta.address,
+                    tokenOwnerAccountB: wsol_ta.address,
+                    tickArray0: tickarrays[0],
+                    tickArray1: tickarrays[1],
+                    tickArray2: tickarrays[2],
+                    oracle: deok_sol_whirlpool_oracle_pubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction(wsol_ta)
+                .addInstruction(deok_ta)
+                .addInstruction({
+                    instructions: [swap],
+                    cleanupInstructions: [],
+                    signers: [user],
+                });
+        });
+    });
+
+    describe('update fee and collect fee', () => {
+        it('execute proxy update_fees_and_rewards', async () => {
+            const deok_sol_whirlpool = await whirlpool_client.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+
+            const position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+
+            const pre_last_updated = (await deok_sol_whirlpool.refreshData())
+                .rewardLastUpdatedTimestamp;
+
+            await sleep(2);
+
+            const update_fees_and_rewards = await program.methods
+                .proxyUpdateFeesAndRewards()
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    position: position_pda.publicKey,
+                    tickArrayLower: PDAUtil.getTickArrayFromTickIndex(
+                        position_data.tickLowerIndex,
+                        64,
+                        deok_sol_whirlpool_pubkey,
+                        ORCA_WHIRLPOOL_PROGRAM_ID,
+                    ).publicKey,
+                    tickArrayUpper: PDAUtil.getTickArrayFromTickIndex(
+                        position_data.tickUpperIndex,
+                        64,
+                        deok_sol_whirlpool_pubkey,
+                        ORCA_WHIRLPOOL_PROGRAM_ID,
+                    ).publicKey,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            ).addInstruction({
+                instructions: [update_fees_and_rewards],
+                cleanupInstructions: [],
+                signers: [],
             });
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+
+            const post_last_updated = (await deok_sol_whirlpool.refreshData())
+                .rewardLastUpdatedTimestamp;
+            assert(post_last_updated.gt(pre_last_updated));
+        });
+
+        it('execute proxy collect_fees', async () => {
+            const deok_sol_whirlpool = await whirlpool_client.getPool(
+                deok_sol_whirlpool_pubkey,
+                IGNORE_CACHE,
+            );
+
+            const position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+
+            assert(!position_data.feeOwedA.isZero());
+            assert(!position_data.feeOwedB.isZero());
+
+            const collect_fees = await program.methods
+                .proxyCollectFees()
+                .accounts({
+                    whirlpoolProgram: ORCA_WHIRLPOOL_PROGRAM_ID,
+                    whirlpool: deok_sol_whirlpool_pubkey,
+                    positionAuthority: wallet.publicKey,
+                    position: position_pda.publicKey,
+                    positionTokenAccount: getAssociatedTokenAddressSync(
+                        position_mint,
+                        wallet.publicKey,
+                    ),
+                    tokenOwnerAccountA: getAssociatedTokenAddressSync(
+                        DEOK.mint,
+                        wallet.publicKey,
+                    ),
+                    tokenVaultA: deok_sol_whirlpool.getData().tokenVaultA,
+                    tokenOwnerAccountB: getAssociatedTokenAddressSync(
+                        SOL.mint,
+                        wallet.publicKey,
+                    ),
+                    tokenVaultB: deok_sol_whirlpool.getData().tokenVaultB,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                })
+                .instruction();
+
+            const transaction = new TransactionBuilder(
+                connection,
+                wallet,
+                transaction_builder_opts,
+            )
+                .addInstruction({
+                    instructions: [collect_fees],
+                    cleanupInstructions: [],
+                    signers: [],
+                })
+                .addInstruction({
+                    instructions: [
+                        createCloseAccountInstruction(
+                            getAssociatedTokenAddressSync(
+                                SOL.mint,
+                                wallet.publicKey,
+                            ),
+                            wallet.publicKey,
+                            wallet.publicKey,
+                        ),
+                    ],
+                    cleanupInstructions: [],
+                    signers: [],
+                });
+
+            const signature = await transaction.buildAndExecute();
+            await connection.confirmTransaction(signature);
+
+            const post_position_data = await fetcher.getPosition(
+                position_pda.publicKey,
+                IGNORE_CACHE,
+            );
+            assert(post_position_data.feeOwedA.isZero());
+            assert(post_position_data.feeOwedB.isZero());
         });
     });
 });
