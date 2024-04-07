@@ -1,11 +1,13 @@
 [toolchain]
-anchor_version = "0.29.0" 
+anchor_version = "0.29.0"
 
 [features]
 seeds = false
 skip-lint = false
 
 [programs.localnet]
+fairsale = "3SmnwsonVtHkHbApWRJkL4LPd72c66QrWFEX5EFdBppj"
+moai = "2Svk2fb1YwpjKrxktUabBsYYm49HiXyxHpAAAK5g6K9t"
 orca_test = "9kUZv9JjkuAsTEmauboSaCzBH5cfFjThyWecCeYXFQ5h"
 
 [registry]
@@ -17,3 +19,5 @@ wallet = "./tests-env/test-wallet.json"
 
 [test]
 startup_wait = 1000
+shutdown_wait = 2000
+upgradeable = false
