@@ -11,8 +11,6 @@ use anchor_spl::{
 const ROCK_PRICE: u64 = 9900000;
 const FEE: u64 = 100000;
 
-declare_id!("2Svk2fb1YwpjKrxktUabBsYYm49HiXyxHpAAAK5g6K9t");
-
 pub fn amount_to_ui_amount_string(amount: u64, decimals: u8) -> String {
     let decimals = decimals as usize;
     if decimals > 0 {
@@ -25,6 +23,8 @@ pub fn amount_to_ui_amount_string(amount: u64, decimals: u8) -> String {
         amount.to_string()
     }
 }
+
+declare_id!("2Svk2fb1YwpjKrxktUabBsYYm49HiXyxHpAAAK5g6K9t");
 
 #[program]
 pub mod moai {

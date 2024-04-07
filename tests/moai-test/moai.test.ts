@@ -25,6 +25,8 @@ import {
 import { assert } from 'chai';
 import BN from 'bn.js';
 import { getMoaiAddress } from './util';
+import Irys from '@irys/sdk';
+import path from 'path';
 
 const TEST_PROVIDER_URL = 'http://localhost:8899';
 const TEST_WALLET_SECRET = [
@@ -33,6 +35,20 @@ const TEST_WALLET_SECRET = [
     176, 5, 119, 211, 100, 106, 160, 142, 58, 48, 144, 91, 203, 77, 198, 67,
     187, 148, 139, 159, 53, 68, 93, 59, 150, 69, 24, 221, 84, 37,
 ];
+
+const getIrys = async () => {
+    const token = 'solana';
+    const providerUrl =
+        'https://solana-devnet-archive.allthatnode.com/Ez7eqjgszCRYxMTozvryy4B5Y8qvR5Q7';
+
+    const irys = new Irys({
+        network: 'devnet',
+        token, // Token used for payment
+        key: TEST_WALLET_SECRET,
+        config: { providerUrl }, // Optional provider URL, only required when using Devnet
+    });
+    return irys;
+};
 
 const SOL = {
     mint: new PublicKey('So11111111111111111111111111111111111111112'),
@@ -162,6 +178,26 @@ describe('moai-test', () => {
                 { skipPreflight: true },
             );
             console.log('approve check signature: ', signature);
+        });
+
+        it('create meme', async () => {
+            const irys = await getIrys();
+
+            // Your file
+            const fileToUpload = './images/meme.png';
+            const filePath = path.join(__dirname, fileToUpload);
+
+            // Add a custom tag that tells the gateway how to serve this file to a browser
+            const tags = [{ name: 'Content-Type', value: 'image/png' }];
+
+            try {
+                const response = await irys.uploadFile(filePath, { tags });
+                console.log(
+                    `File uploaded ==> https://gateway.irys.xyz/${response.id}`,
+                );
+            } catch (e) {
+                console.log('Error uploading file ', e);
+            }
         });
     });
 });
