@@ -19,6 +19,8 @@ import {
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
+    transferChecked,
+    createAccount,
 } from '@solana/spl-token';
 import { assert } from 'chai';
 import BN from 'bn.js';
@@ -90,11 +92,15 @@ describe('moai-test', () => {
     });
 
     describe('user action', () => {
+        const receiver = Keypair.generate();
+
         const userSpending = Keypair.generate();
         const userRockAccount = getAssociatedTokenAddressSync(
             rockMint.publicKey,
             user.publicKey,
         );
+
+        let receiverRockAccount: PublicKey;
 
         before(async () => {
             await (async () => {
@@ -110,6 +116,15 @@ describe('moai-test', () => {
                     testWallet,
                 ]);
             })();
+        });
+
+        before(async () => {
+            receiverRockAccount = await createAccount(
+                provider.connection,
+                testWallet,
+                rockMint.publicKey,
+                receiver.publicKey,
+            );
         });
 
         it('deposit sol and mint rock', async () => {
@@ -131,6 +146,22 @@ describe('moai-test', () => {
                 .signers([user, userSpending])
                 .rpc({ skipPreflight: true });
             console.log('mint rock signature: ', signature);
+        });
+
+        it('check approve', async () => {
+            const signature = await transferChecked(
+                provider.connection,
+                userSpending,
+                userRockAccount,
+                rockMint.publicKey,
+                receiverRockAccount,
+                userSpending,
+                1,
+                0,
+                undefined,
+                { skipPreflight: true },
+            );
+            console.log('approve check signature: ', signature);
         });
     });
 });
