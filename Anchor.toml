@@ -17,6 +17,6 @@ cluster = "Localnet"
 wallet = "./tests-env/test-wallet.json"
 
 [test]
-startup_wait = 2000
+startup_wait = 4000
 shutdown_wait = 2000
 upgradeable = false

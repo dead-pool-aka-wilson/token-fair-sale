@@ -14,6 +14,7 @@ import {
     LAMPORTS_PER_SOL,
     Transaction,
     sendAndConfirmTransaction,
+    AccountMeta,
 } from '@solana/web3.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -24,9 +25,19 @@ import {
 } from '@solana/spl-token';
 import { assert } from 'chai';
 import BN from 'bn.js';
-import { getMoaiAddress } from './util';
+import { getMoaiAddress, getMemeAddress, getVoteAddress } from './util';
 import Irys from '@irys/sdk';
 import path from 'path';
+import { createHash } from 'crypto';
+import { sleep } from '@irys/sdk/build/cjs/common/utils';
+
+const hashValue = (name: string): Promise<string> =>
+    new Promise(resolve =>
+        setTimeout(
+            () => resolve(createHash('sha256').update(name).digest('hex')),
+            0,
+        ),
+    );
 
 const TEST_PROVIDER_URL = 'http://localhost:8899';
 const TEST_WALLET_SECRET = [
@@ -115,6 +126,10 @@ describe('moai-test', () => {
             rockMint.publicKey,
             user.publicKey,
         );
+        const userMoaiAccount = getAssociatedTokenAddressSync(
+            moaiMint.publicKey,
+            user.publicKey,
+        );
 
         let receiverRockAccount: PublicKey;
 
@@ -151,8 +166,11 @@ describe('moai-test', () => {
                     userSpending: userSpending.publicKey,
                     moai,
                     rockMint: rockMint.publicKey,
+                    moaiMint: moaiMint.publicKey,
                     userRockAccount,
+                    userMoaiAccount,
                     escrowAccount,
+
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
@@ -181,11 +199,21 @@ describe('moai-test', () => {
         });
 
         it('create meme', async () => {
-            const irys = await getIrys();
+            const name = 'my crypto meme';
+            const symbol = 'MCM';
+            const description =
+                'my crypto knowledge dumb but meme? I nailed it';
 
+            const index = await (await hashValue(name)).slice(0, 32);
+
+            const meme = getMemeAddress(index);
+            console.log(meme.toBase58());
+            const irys = await getIrys();
             // Your file
             const fileToUpload = './images/meme.png';
             const filePath = path.join(__dirname, fileToUpload);
+
+            let uri = '';
 
             // Add a custom tag that tells the gateway how to serve this file to a browser
             const tags = [{ name: 'Content-Type', value: 'image/png' }];
@@ -195,9 +223,168 @@ describe('moai-test', () => {
                 console.log(
                     `File uploaded ==> https://gateway.irys.xyz/${response.id}`,
                 );
+                //TODO : add metadata json with metaplex standard and re send irys to get uris and test create meme
+                const metadata = {
+                    name,
+                    symbol,
+                    description,
+                    image: `https://gateway.irys.xyz/${response.id}`,
+                };
+                uri = `https://gateway.irys.xyz/${response.id}`;
             } catch (e) {
                 console.log('Error uploading file ', e);
+
+                uri = 'failed to upload image';
             }
+
+            const moai = getMoaiAddress(wallet.publicKey);
+            console.log(
+                'user Spending Vote : ',
+                getVoteAddress(userSpending.publicKey, meme).toBase58(),
+            );
+
+            const signature = await program.methods
+                .createMeme(index, name, uri)
+                .accounts({
+                    userSpending: userSpending.publicKey,
+                    meme,
+                    moai,
+                    rockMint: rockMint.publicKey,
+                    moaiMint: moaiMint.publicKey,
+                    userRockAccount: getAssociatedTokenAddressSync(
+                        rockMint.publicKey,
+                        user.publicKey,
+                    ),
+                    userMoaiAccount: getAssociatedTokenAddressSync(
+                        moaiMint.publicKey,
+                        user.publicKey,
+                    ),
+                    memeRockAccount: getAssociatedTokenAddressSync(
+                        rockMint.publicKey,
+                        meme,
+                        true,
+                    ),
+                    userSpendingVote: getVoteAddress(
+                        userSpending.publicKey,
+                        meme,
+                    ),
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                    memoProgram: SPL_MEMO,
+                    systemProgram: SystemProgram.programId,
+                    rent: SYSVAR_RENT_PUBKEY,
+                })
+                .signers([userSpending])
+                .rpc({ skipPreflight: true, commitment: 'finalized' });
+
+            console.log('create meme signature: ', signature);
+        });
+
+        it('create meme2', async () => {
+            sleep(1000);
+            const name = 'my crypto meme2';
+            const symbol = 'MCM';
+            const description =
+                'my crypto knowledge dumb but meme? I nailed it';
+
+            const index = await (await hashValue(name)).slice(0, 32);
+
+            const meme = getMemeAddress(index);
+            console.log(meme.toBase58());
+            const irys = await getIrys();
+            // Your file
+            const fileToUpload = './images/meme.png';
+            const filePath = path.join(__dirname, fileToUpload);
+
+            let uri = '';
+
+            // Add a custom tag that tells the gateway how to serve this file to a browser
+            const tags = [{ name: 'Content-Type', value: 'image/png' }];
+
+            try {
+                const response = await irys.uploadFile(filePath, { tags });
+                console.log(
+                    `File uploaded ==> https://gateway.irys.xyz/${response.id}`,
+                );
+                //TODO : add metadata json with metaplex standard and re send irys to get uris and test create meme
+                const metadata = {
+                    name,
+                    symbol,
+                    description,
+                    image: `https://gateway.irys.xyz/${response.id}`,
+                };
+                uri = `https://gateway.irys.xyz/${response.id}`;
+            } catch (e) {
+                console.log('Error uploading file ', e);
+
+                uri = 'failed to upload image';
+            }
+
+            const moai = getMoaiAddress(wallet.publicKey);
+
+            let topVote: null | undefined | PublicKey = null;
+
+            while (topVote === null) {
+                topVote = await program.account.moai
+                    .fetch(moai)
+                    .then(moai => {
+                        console.log(moai);
+                        return moai.currentTopVote;
+                    })
+                    .catch(e => {
+                        console.log(e);
+                        return null;
+                    });
+                console.log('passed');
+                console.log('topVote : ', topVote && topVote.toBase58());
+            }
+
+            const signature = await program.methods
+                .createMeme(index, name, uri)
+                .accounts({
+                    userSpending: userSpending.publicKey,
+                    meme,
+                    moai,
+                    rockMint: rockMint.publicKey,
+                    moaiMint: moaiMint.publicKey,
+                    userRockAccount: getAssociatedTokenAddressSync(
+                        rockMint.publicKey,
+                        user.publicKey,
+                    ),
+                    userMoaiAccount: getAssociatedTokenAddressSync(
+                        moaiMint.publicKey,
+                        user.publicKey,
+                    ),
+                    memeRockAccount: getAssociatedTokenAddressSync(
+                        rockMint.publicKey,
+                        meme,
+                        true,
+                    ),
+                    userSpendingVote: getVoteAddress(
+                        userSpending.publicKey,
+                        meme,
+                    ),
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                    memoProgram: SPL_MEMO,
+                    systemProgram: SystemProgram.programId,
+                    rent: SYSVAR_RENT_PUBKEY,
+                })
+                .remainingAccounts(
+                    topVote != undefined
+                        ? [
+                              {
+                                  pubkey: topVote,
+                                  isSigner: false,
+                                  isWritable: false,
+                              },
+                          ]
+                        : [],
+                )
+                .signers([userSpending])
+                .rpc({ skipPreflight: true });
+
+            console.log('create meme signature: ', signature);
         });
     });
 });
