@@ -1,0 +1,36 @@
+extends = ["../../Anchor.toml"]
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/moai-test/**/*.ts --trace-warnings"
+
+# [[test.genesis]]
+# address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+# program = "programs/metadata.so"
+
+# [[test.genesis]]
+# address = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"
+# program = "programs/whirlpool.so"
+
+# [test.validator]
+# url = "https://api.mainnet-beta.solana.com"
+
+# # whirlpool program idl account
+# [[test.validator.clone]]
+# address = "2KFqE4RWoPVbvodo8vbggCFeHPS8TDvgpwp79ALMrcyn"
+
+# [[test.validator.account]]
+# address = "2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ"
+# filename = "accounts/whirlpools_config.json"
+
+# [[test.validator.account]]
+# address = "62dSkn5ktwY1PoKPNMArZA4bZsvyemuknWUnnQ2ATTuN"
+# filename = "accounts/whirlpools_config_feetier1.json"
+
+# [[test.validator.account]]
+# address = "HT55NVGVTjWmWLjV7BrSMPVZ7ppU8T2xE5nCAZ6YaGad"
+# filename = "accounts/whirlpools_config_feetier64.json"
+
+# [[test.validator.account]]
+# address = "BGnhGXT9CCt5WYS23zg9sqsAT2MGXkq7VSwch9pML82W"
+# filename = "accounts/whirlpools_config_feetier128.json"
+

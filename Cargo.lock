@@ -210,6 +210,7 @@ dependencies = [
  "anchor-lang",
  "solana-program",
  "spl-associated-token-account",
+ "spl-memo",
  "spl-token",
  "spl-token-2022 0.9.0",
 ]
@@ -1245,6 +1246,17 @@ dependencies = [
  "keccak",
  "rand_core 0.6.4",
  "zeroize",
+]
+
+[[package]]
+name = "moai"
+version = "0.1.0"
+dependencies = [
+ "ahash 0.8.6",
+ "anchor-lang",
+ "anchor-spl",
+ "solana-program",
+ "whirlpool-cpi",
 ]
 
 [[package]]
