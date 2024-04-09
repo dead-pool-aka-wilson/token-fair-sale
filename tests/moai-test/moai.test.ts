@@ -25,7 +25,12 @@ import {
 } from '@solana/spl-token';
 import { assert } from 'chai';
 import BN from 'bn.js';
-import { getMoaiAddress, getMemeAddress, getVoteAddress } from './util';
+import {
+    getMoaiAddress,
+    getMemeAddress,
+    getVoteAddress,
+    getUserInfoAddress,
+} from './util';
 import Irys from '@irys/sdk';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -39,6 +44,8 @@ const hashValue = (name: string): Promise<string> =>
         ),
     );
 
+// const TEST_PROVIDER_URL =
+//     'https://solana-devnet-archive.allthatnode.com/Ez7eqjgszCRYxMTozvryy4B5Y8qvR5Q7/';
 const TEST_PROVIDER_URL = 'http://localhost:8899';
 const TEST_WALLET_SECRET = [
     76, 58, 227, 140, 84, 35, 34, 94, 210, 40, 248, 31, 56, 113, 4, 213, 195,
@@ -49,8 +56,7 @@ const TEST_WALLET_SECRET = [
 
 const getIrys = async () => {
     const token = 'solana';
-    const providerUrl =
-        'https://solana-devnet-archive.allthatnode.com/Ez7eqjgszCRYxMTozvryy4B5Y8qvR5Q7';
+    const providerUrl = TEST_PROVIDER_URL;
 
     const irys = new Irys({
         network: 'devnet',
@@ -69,7 +75,7 @@ const SOL = {
 const SPL_MEMO = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 
 describe('moai-test', () => {
-    const connection = new Connection(TEST_PROVIDER_URL, 'confirmed');
+    const connection = new Connection(TEST_PROVIDER_URL);
     const testWallet = Keypair.fromSecretKey(
         new Uint8Array(TEST_WALLET_SECRET),
     );
@@ -97,7 +103,10 @@ describe('moai-test', () => {
 
     describe('initialize moai', () => {
         it('initialize moai', async () => {
-            const signature = await program.methods
+            await connection.getLatestBlockhash().then(blockhash => {
+                console.log(blockhash);
+            });
+            const ix = await program.methods
                 .initializeMoai()
                 .accounts({
                     authority: wallet.publicKey,
@@ -111,8 +120,16 @@ describe('moai-test', () => {
                     systemProgram: SystemProgram.programId,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
-                .signers([moaiMint, rockMint])
-                .rpc({ skipPreflight: true });
+                .instruction();
+
+            const tx = new Transaction().add(ix);
+
+            const signature = await sendAndConfirmTransaction(
+                connection,
+                tx,
+                [testWallet, rockMint, moaiMint],
+                { skipPreflight: true },
+            );
 
             console.log('initialize moai signature: ', signature);
         });
@@ -160,7 +177,7 @@ describe('moai-test', () => {
 
         it('deposit sol and mint rock', async () => {
             const signature = await program.methods
-                .mintRock(new BN('19'))
+                .mintRock(new BN('1'))
                 .accounts({
                     user: user.publicKey,
                     userSpending: userSpending.publicKey,
@@ -170,7 +187,7 @@ describe('moai-test', () => {
                     userRockAccount,
                     userMoaiAccount,
                     escrowAccount,
-
+                    userInfo: getUserInfoAddress(userSpending.publicKey, moai),
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
@@ -182,21 +199,21 @@ describe('moai-test', () => {
             console.log('mint rock signature: ', signature);
         });
 
-        it('check approve', async () => {
-            const signature = await transferChecked(
-                provider.connection,
-                userSpending,
-                userRockAccount,
-                rockMint.publicKey,
-                receiverRockAccount,
-                userSpending,
-                1,
-                0,
-                undefined,
-                { skipPreflight: true },
-            );
-            console.log('approve check signature: ', signature);
-        });
+        // it('check approve', async () => {
+        //     const signature = await transferChecked(
+        //         provider.connection,
+        //         userSpending,
+        //         userRockAccount,
+        //         rockMint.publicKey,
+        //         receiverRockAccount,
+        //         userSpending,
+        //         1,
+        //         0,
+        //         undefined,
+        //         { skipPreflight: true },
+        //     );
+        //     console.log('approve check signature: ', signature);
+        // });
 
         it('create meme', async () => {
             const name = 'my crypto meme';

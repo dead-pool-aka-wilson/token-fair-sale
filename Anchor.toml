@@ -13,7 +13,8 @@ orca_test = "9kUZv9JjkuAsTEmauboSaCzBH5cfFjThyWecCeYXFQ5h"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "https://solana-devnet-archive.allthatnode.com/Ez7eqjgszCRYxMTozvryy4B5Y8qvR5Q7/"
+# cluster = "Localnet"
 wallet = "./tests-env/test-wallet.json"
 
 [test]

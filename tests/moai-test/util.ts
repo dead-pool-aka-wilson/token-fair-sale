@@ -7,6 +7,7 @@ import { expect } from 'chai';
 const MOAI = 'moai';
 const MEME = 'meme';
 const VOTE = 'vote';
+const USER = 'user';
 const program = anchor.workspace.Moai as Program<Moai>;
 
 export const getMoaiAddress = (authority: PublicKey) => {
@@ -31,6 +32,21 @@ export const getVoteAddress = (userSpending: PublicKey, meme: PublicKey) => {
             anchor.utils.bytes.utf8.encode(VOTE),
             userSpending.toBuffer(),
             meme.toBuffer(),
+        ],
+        program.programId,
+    );
+    return address;
+};
+
+export const getUserInfoAddress = (
+    userSpending: PublicKey,
+    moai: PublicKey,
+) => {
+    const [address, _] = PublicKey.findProgramAddressSync(
+        [
+            anchor.utils.bytes.utf8.encode(USER),
+            moai.toBuffer(),
+            userSpending.toBuffer(),
         ],
         program.programId,
     );

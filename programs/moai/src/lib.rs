@@ -8,7 +8,7 @@ use anchor_spl::{
     },
 };
 const LAMPORT: u64 = 1000000000;
-const ROCK_PRICE: u64 = 94000000;
+const ROCK_PRICE: u64 = 96000000;
 const FEE: u64 = 4000000;
 
 pub fn amount_to_ui_amount_string(amount: u64, decimals: u8) -> String {
@@ -142,6 +142,9 @@ pub mod moai {
             ctx.accounts.moai.authority.as_ref(),
             &[ctx.accounts.moai.nonce],
         ];
+
+        ctx.accounts.user_info.rock_account = *ctx.accounts.user_rock_account.to_account_info().key;
+        ctx.accounts.user_info.moai_account = *ctx.accounts.user_moai_account.to_account_info().key;
 
         // Transfer Sol to Escrow
         let sol_transfer_context = CpiContext::new(
@@ -358,6 +361,8 @@ pub struct MintRock<'info> {
     pub user: Signer<'info>,
     #[account(mut)]
     pub user_spending: Signer<'info>,
+    #[account(init_if_needed, payer=user, seeds=[b"user".as_ref(), moai.key().as_ref(), user_spending.key().as_ref()], bump, space=8+User::INIT_SPACE)]
+    pub user_info: Account<'info, User>,
     pub moai: Account<'info, Moai>,
     #[account(mut)]
     pub rock_mint: Account<'info, Mint>,
@@ -433,6 +438,13 @@ pub struct VoteStatus {
     pub meme: Pubkey,
     pub user_spending: Pubkey,
     pub count: u64,
+}
+
+#[account]
+#[derive(InitSpace, Default)]
+pub struct User {
+    pub rock_account: Pubkey,
+    pub moai_account: Pubkey,
 }
 
 #[error_code]
